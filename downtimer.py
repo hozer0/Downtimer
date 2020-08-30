@@ -36,16 +36,13 @@ def it_pings(target):
     stdout,stderr = result.communicate()
     returncode = result.returncode
     if stdout.decode('UTF-8') == "":
-        #sys.exit(f"Error encountered: {stderr.decode('UTF-8')[6:-1]}")    
+        #sys.exit(f"Error encountered: {stderr.decode('UTF-8')[6:-1]}")
         if "cannot resolve" in stderr.decode('UTF-8'):
             print(f" Problem found resolving {HOST}.  Switching to pinging original IP, {IP}. ", end="")
             HOST = IP
-    else:        
+    else:
         FQDN = stdout.decode("utf-8").split(' ')[1]
         IP = stdout.decode("utf-8").split(' ')[2].replace('(',"").replace(')','').replace(':','')
-        if args.debug:
-            print(f"FQDN = {FQDN}")
-            print(f"IP = {IP}")
         returncode = result.returncode
         return returncode == 0
 
@@ -64,7 +61,6 @@ parser = argparse.ArgumentParser(description=f"{TITLE} v{VERSION}")
 parser.add_argument(action='store', dest='host', help='The host to ping')
 parser.add_argument('-l', '--log', action='store', dest='log', help='File to log to')
 parser.add_argument('-b', '--bell', action='store_true', default=False, dest='bell', help='Ring a terminal bell on changes')
-parser.add_argument('--debug', action='store_true', default=False, help="Create additional noise")
 args = parser.parse_args()
 HOST = args.host
 LOG = args.log
@@ -81,12 +77,12 @@ try:
                 try:
                     log_file = open(LOG,'at',1)
                 except Exception as log_error:
-                    sys.exit(f"Problem with that log file: {log_error}")    
+                    sys.exit(f"Problem with that log file: {log_error}")
                 log_file.write(f" === Starting pings to {HOST} every {DELAY} second{is_it_plural(DELAY)} at {START_TIME} ===\n")
             if FQDN_DIFFERS == "" and IP == HOST:
                 INFO_STRING = ""
             else:
-                INFO_STRING = f"({FQDN_DIFFERS}{IP}) "       
+                INFO_STRING = f"({FQDN_DIFFERS}{IP}) "
             print(f" === Pinging {HOST} {INFO_STRING}every {DELAY} second{is_it_plural(DELAY)} until you hit CTRL+C{LOG_STRING} ===")
             FIRST_RUN = False
         if not ERROR and UP:
@@ -132,4 +128,3 @@ except KeyboardInterrupt:
         log_file.write(f" === Stopping at {STOP_TIME} ===\n")
         log_file.write(f" === Total runtime was {TOTAL_RUNTIME_ELAPSED}. Total downtime was {TOTAL_DOWNTIME}. ===\n")
         log_file.close()
-
