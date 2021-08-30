@@ -10,6 +10,3 @@ ehthumbs.db
 Thumbs.db
 Pipfile
 Pipfile.lock
-
-# Script log
-.updateDNS.log
