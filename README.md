@@ -19,8 +19,9 @@ optional arguments:
   -b, --bell         Ring a terminal bell on changes
 
 $ ./downtimer.py -b -l /tmp/pinglog.txt pingo.example.com
- === Pinging pingo.example.com (192.168.1.99) every 1 second until you hit CTRL+C, logging to /tmp/pinglog.txt ===
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!.... 00:00:07 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!^C Exiting...
+ === Pinging pingo.example.com (192.168.1.99) every 1 second until you hit CTRL+C ===
+ === Logging to /tmp/pinglog.txt ===
+!!!!!!!!!!!!!!!!!!!!!!!!!!.... 00:00:07 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!^C Exiting...
  === Total runtime was 00:04:00. Total downtime was 00:00:08. ===
 
 $ cat /tmp/pinglog.txt
