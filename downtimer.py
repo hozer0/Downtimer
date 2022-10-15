@@ -6,120 +6,130 @@ import sys
 import datetime
 import platform
 import subprocess
-TITLE = "Downtimer"
-ELAPSED = 0
-TOTAL_ELAPSED = 0
-UP = True
-FIRST_RUN = True
-FQDN = ""
-IP = ""
-DELAY = 1
-BAD_DNS_MESSAGES = ["no address associated with name", "Unknown host", "Name or service not known", "cannot resolve"]
+title = "Downtimer"
+elapsed = 0
+total_elapsed = 0
+up = True
+first_run = True
+fqdn = ""
+ip = ""
+delay = 1
+loss_count = 0
+bad_dns_messages = ["no address associated with name", "Unknown host", "Name or service not known", "cannot resolve"]
 
 
 def is_it_plural(number):
-    return("s" if int(number) != 1 else "")
+    """This simply adds an 's' if number is greater than one so signify plurality"""
+    return "s" if int(number) != 1 else ""
 
 
 def it_pings(target):
-    global FIRST_RUN, FQDN, IP, HOST
-    ping_command = shlex.split(COMMAND)
-    ping_command.append(HOST)
+    """Does it ping?"""
+    global first_run, fqdn, ip, host
+    ping_command = shlex.split(command)
+    ping_command.append(host)
     result = subprocess.Popen(ping_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = result.communicate()
     returncode = result.returncode
     if stdout.decode('UTF-8') == "":
-        # Older method was:
-        # sys.exit(f"Error encountered: {stderr.decode('UTF-8')[6:-1]}")
-        if "cannot resolve" in stderr.decode('UTF-8'):
-            print(f" Problem found resolving {HOST}.  Switching to pinging original IP, {IP}. ", end="")
-            HOST = IP
+        if "cannot resolve" in stderr.decode('UTF-8') and ip:
+            print(f" Problem found resolving {host}.  Switching to pinging original ip, {ip}. ", end="")
+            host = ip
+        elif "cannot resolve" in stderr.decode('UTF-8') and not ip:
+            print(f"Cannot resolve {host}.")
+            sys.exit(1)
     else:
-        FQDN = stdout.decode("utf-8").split(' ')[1]
-        IP = stdout.decode("utf-8").split(' ')[2].replace('(', "").replace(')', '').replace(':', '')
+        fqdn = stdout.decode("utf-8").split(' ')[1]
+        ip = stdout.decode("utf-8").split(' ')[2].replace('(', "").replace(')', '').replace(':', '')
         returncode = result.returncode
         return returncode == 0
 
 
-if platform.system().lower() == 'windows':
-    print("Is windows still a thing?")
-    sys.exit(2)
-elif platform.system().lower() == "netbsd" or platform.system().lower() == "linux" or platform.system().lower() == "openbsd":
-    COMMAND = f"ping -c 1 -w {DELAY}"
+if platform.system().lower() == "netbsd" or platform.system().lower() == "linux" or platform.system().lower() == "openbsd":
+    command = f"ping -c 1 -w {delay}"
 elif platform.system().lower() == "darwin" or platform.system().lower() == "freebsd":
-    COMMAND = f"ping -c 1 -t {DELAY}"
+    command = f"ping -c 1 -t {delay}"
 else:
     print("I dunno what OS you are using, I guess.")
-    sys.exit(3)
+    sys.exit(2)
 
-parser = argparse.ArgumentParser(description=f"{TITLE}")
+parser = argparse.ArgumentParser(description=f"{title}")
 parser.add_argument(action='store', dest='host', help='The host to ping')
 parser.add_argument('-l', '--log', action='store', dest='log', help='File to log to')
 parser.add_argument('-b', '--bell', action='store_true', default=False, dest='bell', help='Ring a terminal bell on changes')
+parser.add_argument('-p', '--acceptable-loss', action='store', default=1, dest='ok_loss', help='How many dropped pings are excusable.')
 args = parser.parse_args()
-HOST = args.host
-LOG = args.log
-BELL = args.bell
-TOTAL_RUNTIME_START = time.time()
-START_TIME = datetime.datetime.now().replace(microsecond=0).isoformat()
+host = args.host
+log = args.log
+bell = args.bell
+ok_loss = int(args.ok_loss)
+total_runtime_start = time.time()
+start_time = datetime.datetime.now().replace(microsecond=0).isoformat()
 try:
     while True:
-        ERROR = not it_pings(HOST)
-        if FIRST_RUN:
-            FQDN_DIFFERS = f"{FQDN}/" if HOST != FQDN else ""
-            LOG_STRING = f"\n === Logging to {LOG} ===" if LOG else ""
-            if LOG:
+        error = not it_pings(host)
+        if first_run:
+            fqdn_differs = f"{fqdn}/" if host != fqdn else ""
+            log_string = f", logging to {log}" if log else ""
+            if log:
                 try:
-                    log_file = open(LOG, 'at', 1)
+                    log_file = open(log, 'at', 1)
                 except Exception as log_error:
                     sys.exit(f"Problem with that log file: {log_error}")
-                log_file.write(f" === Starting pings to {HOST} every {DELAY} second{is_it_plural(DELAY)} at {START_TIME} ===\n")
-            if FQDN_DIFFERS == "" and IP == HOST:
-                INFO_STRING = ""
+                log_file.write(
+                    f" === Starting pings to {host} every {delay} second{is_it_plural(delay)} at {start_time} ===\n")
+            if fqdn_differs == "" and ip == host:
+                info_string = ""
             else:
-                INFO_STRING = f"({FQDN_DIFFERS}{IP}) "
-            print(f" === Pinging {HOST} {INFO_STRING}every {DELAY} second{is_it_plural(DELAY)} until you hit CTRL+C === {LOG_STRING}")
-            FIRST_RUN = False
-        if not ERROR and UP:
+                info_string = f"({fqdn_differs}{ip}) "
+            print(
+                f" === Pinging {host} {info_string}every {delay} second{is_it_plural(delay)} until you hit CTRL+C{log_string} ===")
+            first_run = False
+        if not error and up:
             # it pings, still up
             print("!", end='', flush=True)
-        elif not ERROR and not UP:
+        elif not error and not up:
             # it pings, recovers
-            ELAPSED = time.time() - DOWNTIME_START
-            TOTAL_ELAPSED += ELAPSED
-            print(" " + time.strftime("%H:%M:%S", time.gmtime(ELAPSED)) + " ", end='')
+            elapsed = time.time() - downtime_start
+            total_elapsed += elapsed
+            print(" " + time.strftime("%H:%M:%S",
+                                      time.gmtime(elapsed)) + " ", end='')
             print("!", end='', flush=True)
-            if BELL:
+            if bell:
                 print("\a", end='')
-            if LOG:
-                log_file.write(f" + Ping loss to {HOST} ended at {datetime.datetime.now().replace(microsecond=0).isoformat()}")
-                log_file.write(f" - {int(ELAPSED)} second{is_it_plural(int(ELAPSED))} elapsed.\n")
-            UP = True
-        elif ERROR and UP:
-            # it does not ping, was up
-            DOWNTIME_START = time.time()
-            if BELL:
-                print("\a", end='')
-            if LOG:
+            if log:
                 log_file.write(
-                    f" - Ping loss to {HOST} started at {datetime.datetime.now().replace(microsecond=0).isoformat()}.\n")
-            UP = False
+                    f" + Ping loss to {host} ended at {datetime.datetime.now().replace(microsecond=0).isoformat()}")
+                log_file.write(
+                    f" - {int(elapsed)} second{is_it_plural(int(elapsed))} elapsed.\n")
+            up = True
+        elif error and up:
+            # it does not ping, was up
+            downtime_start = time.time()
+            if bell:
+                print("\a", end='')
+            if log:
+                log_file.write(
+                    f" - Ping loss to {host} started at {datetime.datetime.now().replace(microsecond=0).isoformat()}.\n")
+            up = False
             print(".", end='', flush=True)
-        elif ERROR and not UP:
+        elif error and not up:
             # it does not ping, was already down
             print(".", end='', flush=True)
-        time.sleep(DELAY)
+        time.sleep(delay)
 except KeyboardInterrupt:
     print(' Exiting...')
-    if not UP:
-        ELAPSED = time.time() - DOWNTIME_START
-        TOTAL_ELAPSED += ELAPSED
-    STOP_TIME = datetime.datetime.now().replace(microsecond=0).isoformat()
-    TOTAL_RUNTIME_END = time.time()
-    TOTAL_RUNTIME_ELAPSED = f'{time.strftime("%H:%M:%S", time.gmtime(TOTAL_RUNTIME_END - TOTAL_RUNTIME_START))}'
-    TOTAL_DOWNTIME = time.strftime('%H:%M:%S', time.gmtime(TOTAL_ELAPSED))
-    print(f" === Total runtime was {TOTAL_RUNTIME_ELAPSED}. Total downtime was {TOTAL_DOWNTIME}. ===")
-    if LOG:
-        log_file.write(f" === Stopping at {STOP_TIME} ===\n")
-        log_file.write(f" === Total runtime was {TOTAL_RUNTIME_ELAPSED}. Total downtime was {TOTAL_DOWNTIME}. ===\n")
+    if not up:
+        elapsed = time.time() - downtime_start
+        total_elapsed += elapsed
+    stop_time = datetime.datetime.now().replace(microsecond=0).isoformat()
+    total_runtime_end = time.time()
+    total_runtime_elapsed = f'{time.strftime("%H:%M:%S", time.gmtime(total_runtime_end - total_runtime_start))}'
+    total_downtime = time.strftime('%H:%M:%S', time.gmtime(total_elapsed))
+    print(
+        f" === Total runtime was {total_runtime_elapsed}. Total downtime was {total_downtime}. ===")
+    if log:
+        log_file.write(f" === Stopping at {stop_time} ===\n")
+        log_file.write(
+            f" === Total runtime was {total_runtime_elapsed}. Total downtime was {total_downtime}. ===\n")
         log_file.close()
